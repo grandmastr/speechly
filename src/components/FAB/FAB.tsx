@@ -4,12 +4,12 @@ import { AudioLinesIcon } from 'lucide-react';
 
 import { Button } from '@/ui';
 
-interface WidgetFABProps {
+interface FABProps {
   isOpen: boolean;
   onClick: () => void;
 }
 
-const FAB = ({ isOpen, onClick }: WidgetFABProps): React.ReactElement => {
+const FAB = ({ isOpen, onClick }: FABProps): React.ReactElement => {
   return (
     <Button onClick={onClick}
             className={clsx(

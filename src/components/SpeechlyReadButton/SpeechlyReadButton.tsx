@@ -1,12 +1,6 @@
 import React from 'react';
-import {
-  autoUpdate,
-  flip,
-  FloatingPortal,
-  offset,
-  shift,
-  useFloating,
-} from '@floating-ui/react';
+import { FloatingPortal } from '@floating-ui/react';
+import { Volume2Icon } from 'lucide-react';
 
 interface SpeechlyReadButtonProps {
   position: { x: number; y: number } | null;
@@ -19,34 +13,29 @@ const SpeechlyReadButton = ({
   onRead,
   selectedText,
 }: SpeechlyReadButtonProps): React.ReactNode => {
-  const { refs, floatingStyles } = useFloating({
-    placement: 'top',
-    middleware: [offset(10), flip(), shift()],
-    whileElementsMounted: autoUpdate,
-    ...(position && {
-      elements: {
-        reference: {
-          getBoundingClientRect: () => ({
-            width: 0,
-            height: 0,
-            x: position.x,
-            y: position.y,
-            right: position.x,
-            bottom: position.y,
-            left: position.x,
-          }),
-        } as Element,
-      },
-    }),
-  });
-
   if (!(position && selectedText)) return null;
+
+  // Calculate position for the button
+  // Position it 10px above the selection
+  const buttonStyle: React.CSSProperties = {
+    position: 'fixed',
+    left: `${position.x}px`,
+    top: `${position.y - 40}px`, // Position above the selection
+    transform: 'translateX(-50%)', // Center horizontally
+  };
 
   return (
     <FloatingPortal>
-      <div ref={refs.setFloating} style={floatingStyles} className={'bg-[red]'}>
-        <button onClick={() => onRead(selectedText)}>
-          Read Selection
+      <div
+        style={buttonStyle}
+        className="z-50 shadow-md rounded-md overflow-hidden"
+      >
+        <button
+          onClick={() => onRead(selectedText)}
+          className="flex items-center gap-2 bg-black text-white px-3 py-2 text-sm font-medium hover:bg-gray-800 transition-colors"
+        >
+          <Volume2Icon size={16} />
+          <span>Read Selection</span>
         </button>
       </div>
     </FloatingPortal>

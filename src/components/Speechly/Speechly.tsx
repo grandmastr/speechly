@@ -1,9 +1,10 @@
 import React from 'react';
 import { useImmer } from 'use-immer';
 import { ControlPanel, FAB, SpeechlyReadButton } from '@/components';
-import { Selection } from './types';
+import { Selection, SpeechlyProps } from './types';
+import { setApiKey } from '@/lib/api';
 
-const Speechly = (): React.ReactNode => {
+const Speechly = ({ apiKey, fullName, email }: SpeechlyProps): React.ReactNode => {
   const [isOpen, setIsOpen] = React.useState<boolean>(false);
   const [selection, setSelection] = useImmer<Selection>({
     text: '',
@@ -33,16 +34,34 @@ const Speechly = (): React.ReactNode => {
     }
   }, [setSelection]);
 
-  const handleReadText = (text: string) => {
-    console.log(text);
-    setIsOpen(true);
+  const handleReadText = async (text: string) => {
+    // Get the selected voice ID from localStorage
+    const voiceId = localStorage.getItem('clonedVoiceId');
 
+    if (voiceId) {
+      try {
+        // Import dynamically to avoid circular dependencies
+        const { speakText } = await import('@/services/audio/voice');
+        await speakText(text, voiceId);
+      } catch (error) {
+        console.error('Error reading selected text:', error);
+      }
+    } else {
+      console.warn('No voice selected. Please select a voice in the control panel.');
+    }
+
+    // Clear the selection
     window.getSelection()?.removeAllRanges();
     setSelection(draft => {
       draft.text = '';
       draft.position = null;
     });
   };
+
+  // Set the API key when the component mounts or when the apiKey prop changes
+  React.useEffect(() => {
+    setApiKey(apiKey);
+  }, [apiKey]);
 
   React.useEffect(() => {
     const controller = new AbortController();
@@ -56,7 +75,7 @@ const Speechly = (): React.ReactNode => {
   return (
     <main>
       <FAB isOpen={isOpen} onClick={() => setIsOpen(!isOpen)} />
-      <ControlPanel isOpen={isOpen} onOpenChange={() => setIsOpen(!isOpen)} />
+      <ControlPanel isOpen={isOpen} onOpenChange={() => setIsOpen(!isOpen)} fullName={fullName} email={email} />
       <SpeechlyReadButton
         position={selection.position}
         onRead={handleReadText}

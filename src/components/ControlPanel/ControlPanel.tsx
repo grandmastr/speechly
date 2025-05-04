@@ -13,11 +13,15 @@ import { AudioRecorder, TTSInput, VoiceSelector } from '@/components';
 interface ControlPanelProps {
   isOpen: boolean;
   onOpenChange: () => void;
+  fullName?: string;
+  email?: string;
 }
 
 const ControlPanel = ({
   isOpen,
   onOpenChange,
+  fullName,
+  email,
 }: ControlPanelProps): React.ReactElement => (
   <Sheet open={isOpen} onOpenChange={onOpenChange}>
     <SheetContent className={'!max-w-[450px]'}>
@@ -28,7 +32,7 @@ const ControlPanel = ({
         </VisuallyHidden>
       </SheetHeader>
       <div className={'px-[1rem] grid gap-[2rem]'}>
-        <AudioRecorder />
+        <AudioRecorder fullName={fullName} email={email} />
         <VoiceSelector />
         <TTSInput />
       </div>

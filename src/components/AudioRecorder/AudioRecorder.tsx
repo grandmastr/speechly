@@ -17,18 +17,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/ui';
-import { cloneVoice, blobUrlToFile } from '@/services/audio/voice';
+import { cloneVoice, blobUrlToFile, triggerVoicesRefetch } from '@/services/audio/voice';
 
 interface AudioRecorderProps {
   onRecordingComplete?: (blobUrl: string) => void;
   onError?: (error: string) => void;
   maxFileSizeMB?: number;
+  fullName?: string;
+  email?: string;
 }
 
 const AudioRecorder = ({
   onRecordingComplete,
   onError,
-  maxFileSizeMB = 10 // Default max file size of 10MB
+  maxFileSizeMB = 10, // Default max file size of 10MB
+  fullName,
+  email
 }: AudioRecorderProps): React.ReactElement => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -52,18 +56,17 @@ const AudioRecorder = ({
       mimeType: 'audio/wav',
       audioBitsPerSecond: 128000 // 128 kbps
     },
-    onStop: (blobUrl, blob) => {
-      console.log('Recording stopped, blob details:', {
-        type: blob.type,
-        size: blob.size,
-        url: blobUrl
-      });
+    onStop: (blobUrl) => {
       onRecordingComplete?.(blobUrl);
     },
-    onError: (err) => {
-      console.error('Recording error:', err);
-      onError?.(err);
-    }
+    ...(({
+      onError: (err: unknown) => {
+        console.error('Recording error:', err);
+        // Convert Error objects to string to match the expected onError prop type
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        onError?.(errorMessage);
+      }
+    } as any))
   });
 
   const handlePlayback = useCallback(() => {
@@ -144,20 +147,6 @@ const AudioRecorder = ({
 
     try {
       setIsSubmitting(true);
-
-      console.log('Starting voice cloning process...');
-      console.log('Current audio URL:', currentAudioUrl);
-      console.log('Audio source:', uploadedAudioUrl ? 'Uploaded file' : 'Recorded audio');
-
-      // For debugging, check if the audio element has loaded the audio
-      if (audioRef.current) {
-        console.log('Audio element duration:', audioRef.current.duration);
-        console.log('Audio element ready state:', audioRef.current.readyState);
-      }
-
-      // Convert blob URL to File object
-      console.log('Converting blob URL to File object...');
-
       // Determine the appropriate file extension based on the recording format
       let fileExtension = '.wav'; // Default to .wav since we're using audio/wav in mediaRecorderOptions
 
@@ -173,8 +162,6 @@ const AudioRecorder = ({
           fileExtension = mimeType === 'audio/wav' ? '.wav' :
                          mimeType === 'audio/mpeg' ? '.mp3' :
                          mimeType === 'audio/ogg' ? '.ogg' : '.wav';
-
-          console.log('Determined file extension from uploaded file:', fileExtension);
         }
       }
 
@@ -186,12 +173,14 @@ const AudioRecorder = ({
       }
 
       // Call the voice cloning API
-      console.log('Calling voice cloning API...');
-      const result = await cloneVoice(audioFile, voiceName.trim(), gender);
+      const result = await cloneVoice(audioFile, voiceName.trim(), gender, undefined, fullName, email);
 
       // Store the voice ID in localStorage for later use
       localStorage.setItem('clonedVoiceId', result.id);
       localStorage.setItem('clonedVoiceName', result.display_name);
+
+      // Trigger a refetch of the voices list to include the newly cloned voice
+      triggerVoicesRefetch();
 
       toast.success('Voice cloned successfully!');
 
@@ -231,9 +220,7 @@ const AudioRecorder = ({
 
   // Log status changes for debugging
   React.useEffect(() => {
-    console.log('Recording status changed:', status);
     if (error) {
-      console.error('Recording error:', error);
       toast.error(`Recording error: ${error}`);
     }
   }, [status, error]);
@@ -241,11 +228,6 @@ const AudioRecorder = ({
   const isRecording = status === 'recording';
   const hasAudio = mediaBlobUrl != null || uploadedAudioUrl != null;
   const currentAudioUrl = uploadedAudioUrl || mediaBlobUrl;
-
-  // Log when mediaBlobUrl changes
-  React.useEffect(() => {
-    console.log('mediaBlobUrl changed:', mediaBlobUrl);
-  }, [mediaBlobUrl]);
 
   return (
     <Card>
@@ -340,12 +322,6 @@ const AudioRecorder = ({
               ref={audioRef}
               src={currentAudioUrl}
               onEnded={handleAudioEnded}
-              onLoadedMetadata={() => {
-                console.log('Audio loaded metadata:', {
-                  duration: audioRef.current?.duration,
-                  readyState: audioRef.current?.readyState
-                });
-              }}
               onError={(e) => {
                 console.error('Audio element error:', e);
               }}

@@ -5,3 +5,9 @@ export interface Selection {
     y: number;
   } | null;
 }
+
+export interface SpeechlyProps {
+  apiKey: string;
+  fullName?: string;
+  email?: string;
+}

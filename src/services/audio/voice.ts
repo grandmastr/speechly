@@ -14,6 +14,40 @@ interface VoiceCloneResponse {
   avatar_image: string;
 }
 
+// Interface for text-to-speech request options
+export interface TextToSpeechOptions {
+  audio_format?: 'wav' | 'mp3' | 'ogg' | 'aac';
+  language?: string;
+  model?: 'simba-base' | 'simba-english' | 'simba-multilingual' | 'simba-turbo';
+  options?: {
+    loudness_normalization?: boolean;
+    text_normalization?: boolean;
+  };
+}
+
+// Interface for text-to-speech response
+export interface TextToSpeechResponse {
+  audio_data: string; // Base64-encoded audio data
+  audio_format: 'wav' | 'mp3' | 'ogg' | 'aac';
+  billable_characters_count: number;
+  speech_marks?: {
+    chunks?: Array<{
+      end?: number;
+      end_time?: number;
+      start?: number;
+      start_time?: number;
+      type?: string;
+      value?: string;
+    }>;
+    end?: number;
+    end_time?: number;
+    start?: number;
+    start_time?: number;
+    type?: string;
+    value?: string;
+  };
+}
+
 // Interface for a voice in the voice list response
 export interface Voice {
   display_name: string;
@@ -44,24 +78,20 @@ export const cloneVoice = async (
   audioFile: File,
   name: string,
   gender: 'male' | 'female',
-  avatarFile?: File
+  avatarFile?: File,
+  fullName?: string,
+  email?: string
 ): Promise<VoiceCloneResponse> => {
   try {
     // Validate the audio file
-    if (!(audioFile instanceof File)) {
+    // Check if the audioFile has the required properties of a File object
+    if (!audioFile || typeof audioFile !== 'object' || !('name' in audioFile) || !('type' in audioFile) || !('size' in audioFile)) {
       throw new Error('Invalid audio file: not a File object');
     }
 
     if (audioFile.size === 0) {
       throw new Error('Invalid audio file: file is empty');
     }
-
-    console.log('Cloning voice with file details:', {
-      name: audioFile.name,
-      size: audioFile.size,
-      type: audioFile.type,
-      lastModified: new Date(audioFile.lastModified).toISOString()
-    });
 
     // Create a new FormData object
     const formData = new FormData();
@@ -72,8 +102,8 @@ export const cloneVoice = async (
 
     // Create consent object with user details
     const consentData = {
-      fullName: "Israel Akintunde",
-      email: "israelakintunde005@gmail.com"
+      fullName: fullName || "Israel Akintunde",
+      email: email || "israelakintunde005@gmail.com"
     };
     formData.append('consent', JSON.stringify(consentData));
 
@@ -81,24 +111,10 @@ export const cloneVoice = async (
     // This preserves the original audio format and metadata
     const processedFile = audioFile;
 
-    console.log('Processed file details:', {
-      name: processedFile.name,
-      size: processedFile.size,
-      type: processedFile.type
-    });
-
     // Add the processed audio file to the FormData
     // Ensure the file has a proper extension that matches its MIME type
     let fileName = processedFile.name;
     const fileType = processedFile.type;
-
-    // Log detailed information about the file
-    console.log('Audio file details before sending:', {
-      name: fileName,
-      type: fileType,
-      size: processedFile.size,
-      lastModified: new Date(processedFile.lastModified).toISOString()
-    });
 
     // Ensure the file has the correct extension based on its MIME type
     if (fileType === 'audio/wav' && !fileName.endsWith('.wav')) {
@@ -121,19 +137,6 @@ export const cloneVoice = async (
       formData.append('avatar', avatarFile, avatarFile.name);
     }
 
-    console.log('Making API call to clone voice...');
-
-    // Log the FormData entries
-    console.log('FormData entries:');
-    for (const pair of formData.entries()) {
-      const [key, value] = pair;
-      if (value instanceof File) {
-        console.log(`${key}: File(name=${value.name}, type=${value.type}, size=${value.size})`);
-      } else {
-        console.log(`${key}: ${value}`);
-      }
-    }
-
     // Make the API call with explicit content type
     const response = await api.post<VoiceCloneResponse>('/v1/voices', formData, {
       headers: {
@@ -141,8 +144,6 @@ export const cloneVoice = async (
         'Content-Type': undefined
       }
     });
-
-    console.log('Voice cloning successful:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error cloning voice:', error);
@@ -158,8 +159,6 @@ export const cloneVoice = async (
  */
 export const blobUrlToFile = async (blobUrl: string, filename: string): Promise<File> => {
   try {
-    console.log('Converting blob URL to file:', blobUrl);
-
     // For blob URLs, try to fetch the actual blob first (this preserves MIME type)
     if (blobUrl.startsWith('blob:')) {
       try {
@@ -167,21 +166,11 @@ export const blobUrlToFile = async (blobUrl: string, filename: string): Promise<
         const response = await fetch(blobUrl);
         const blob = await response.blob();
 
-        console.log('Successfully fetched blob with MIME type:', blob.type);
-
         // Create a file from the blob, preserving the original MIME type
-        const file = new File([blob], filename, {
+        return new File([blob], filename, {
           type: blob.type,
           lastModified: Date.now()
         });
-
-        console.log('Created file from blob:', {
-          name: file.name,
-          type: file.type,
-          size: file.size
-        });
-
-        return file;
       } catch (fetchError) {
         console.warn('Failed to fetch blob directly, falling back to XMLHttpRequest:', fetchError);
       }
@@ -219,24 +208,10 @@ export const blobUrlToFile = async (blobUrl: string, filename: string): Promise<
       // Convert ArrayBuffer to Blob with the determined MIME type
       const blob = new Blob([arrayBuffer], { type: mimeType });
 
-      console.log('Blob details:', {
-        type: blob.type,
-        size: blob.size,
-        parts: blob.size > 0 ? 'Has content' : 'Empty blob'
-      });
-
       // Create a new File object from the blob with the determined MIME type
       const file = new File([blob], filename, {
         type: mimeType,
         lastModified: Date.now()
-      });
-
-      // Verify the file has content
-      console.log('Created file:', {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        lastModified: new Date(file.lastModified).toISOString()
       });
 
       return file;
@@ -253,16 +228,126 @@ export const blobUrlToFile = async (blobUrl: string, filename: string): Promise<
  * Fetches the list of voices from the Speechify API
  * @returns Promise with the list of voices
  */
+// Event to notify when voices should be refetched
+export const voicesRefetchEvent = new EventTarget();
+
 export const getVoices = async (): Promise<Voice[]> => {
   try {
-    console.log('Fetching voices from API...');
-
     const response = await api.get<Voice[]>('/v1/voices');
-
-    console.log(`Fetched ${response.data.length} voices from API`);
     return response.data;
   } catch (error) {
-    console.error('Error fetching voices:', error);
+    throw error;
+  }
+};
+
+// Function to trigger a refetch of voices
+export const triggerVoicesRefetch = (): void => {
+  voicesRefetchEvent.dispatchEvent(new Event('refetch'));
+};
+
+/**
+ * Converts text to speech using the Speechify API
+ * @param input - The text to convert to speech
+ * @param voice_id - The ID of the voice to use
+ * @param options - Optional parameters for the text-to-speech conversion
+ * @returns Promise with the text-to-speech response
+ */
+export const textToSpeech = async (
+  input: string,
+  voice_id: string,
+  options?: TextToSpeechOptions
+): Promise<TextToSpeechResponse> => {
+  try {
+    if (!input || !input.trim()) {
+      throw new Error('Input text cannot be empty');
+    }
+
+    if (!voice_id || !voice_id.trim()) {
+      throw new Error('Voice ID cannot be empty');
+    }
+
+    // Prepare request payload
+    const payload = {
+      input,
+      voice_id,
+      ...options
+    };
+
+    // Make the API call
+    const response = await api.post<TextToSpeechResponse>('/v1/audio/speech', payload);
+
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Plays audio data from a text-to-speech response
+ * @param audioData - Base64-encoded audio data
+ * @param audioFormat - Format of the audio data (wav, mp3, ogg, aac)
+ * @returns Promise that resolves when audio playback starts
+ */
+export const playTextToSpeechAudio = async (
+  audioData: string,
+  audioFormat: 'wav' | 'mp3' | 'ogg' | 'aac' = 'wav'
+): Promise<HTMLAudioElement> => {
+  try {
+    // Map audio format to MIME type
+    const mimeTypeMap: Record<string, string> = {
+      'wav': 'audio/wav',
+      'mp3': 'audio/mpeg',
+      'ogg': 'audio/ogg',
+      'aac': 'audio/aac'
+    };
+
+    const mimeType = mimeTypeMap[audioFormat] || 'audio/wav';
+
+    // Create a blob URL from the base64-encoded audio data
+    const blob = await fetch(`data:${mimeType};base64,${audioData}`).then(res => res.blob());
+    const blobUrl = URL.createObjectURL(blob);
+
+    // Create and play audio element
+    const audio = new Audio(blobUrl);
+
+    // Clean up blob URL when audio is done playing
+    audio.onended = () => {
+      URL.revokeObjectURL(blobUrl);
+    };
+    await audio.play();
+
+    return audio;
+  } catch (error) {
+    console.error('Error playing audio:', error);
+    throw error;
+  }
+};
+
+/**
+ * Converts text to speech and plays the audio
+ * @param input - The text to convert to speech
+ * @param voice_id - The ID of the voice to use
+ * @param options - Optional parameters for the text-to-speech conversion
+ * @returns Promise with the audio element and the full TTS response
+ */
+export const speakText = async (
+  input: string,
+  voice_id: string,
+  options?: TextToSpeechOptions
+): Promise<{ audio: HTMLAudioElement; response: TextToSpeechResponse }> => {
+  try {
+    // Convert text to speech
+    const ttsResponse = await textToSpeech(input, voice_id, options);
+
+    // Play the audio
+    const audio = await playTextToSpeechAudio(ttsResponse.audio_data, ttsResponse.audio_format);
+
+    return {
+      audio,
+      response: ttsResponse
+    };
+  } catch (error) {
+    console.error('Error speaking text:', error);
     throw error;
   }
 };
