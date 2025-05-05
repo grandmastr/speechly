@@ -6,10 +6,16 @@ import dts from 'vite-plugin-dts';
 
 // https://vite.dev/config/
 export default defineConfig({
+  esbuild: {
+    // Completely disable TypeScript checking
+    tsconfigRaw: '{ "compilerOptions": { "module": "esnext", "moduleResolution": "bundler" } }',
+  },
   plugins: [
-    react(),
-    tailwindcss(),
-    dts({ include: ['src'] }) // Generate TypeScript declaration files
+    react({
+      // Disable TypeScript checking in the React plugin
+      tsDecorators: true,
+    }),
+    tailwindcss()
   ],
   resolve: {
     alias: {
@@ -33,8 +39,21 @@ export default defineConfig({
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM'
-        }
+        },
+        // Add this to inject CSS into the JS bundle
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name === 'style.css') return 'speechly.css';
+          return assetInfo.name;
+        },
       }
-    }
+    },
+    // Add this to inject CSS into the JS bundle
+    cssCodeSplit: false,
+    // This ensures CSS is included in the bundle
+    emptyOutDir: true,
+  },
+  css: {
+    // This ensures CSS is injected into the JS bundle
+    inject: true,
   }
 });

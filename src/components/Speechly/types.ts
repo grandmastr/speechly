@@ -4,6 +4,7 @@ export interface Selection {
     x: number;
     y: number;
   } | null;
+  isLoading?: boolean;
 }
 
 export interface SpeechlyProps {

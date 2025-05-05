@@ -9,6 +9,7 @@ const Speechly = ({ apiKey, fullName, email }: SpeechlyProps): React.ReactNode =
   const [selection, setSelection] = useImmer<Selection>({
     text: '',
     position: null,
+    isLoading: false,
   });
 
   const handleTextSelection = React.useCallback(() => {
@@ -35,6 +36,11 @@ const Speechly = ({ apiKey, fullName, email }: SpeechlyProps): React.ReactNode =
   }, [setSelection]);
 
   const handleReadText = async (text: string) => {
+    // Set loading state to true
+    setSelection(draft => {
+      draft.isLoading = true;
+    });
+
     // Get the selected voice ID from localStorage
     const voiceId = localStorage.getItem('clonedVoiceId');
 
@@ -50,11 +56,12 @@ const Speechly = ({ apiKey, fullName, email }: SpeechlyProps): React.ReactNode =
       console.warn('No voice selected. Please select a voice in the control panel.');
     }
 
-    // Clear the selection
+    // Clear the selection and reset loading state
     window.getSelection()?.removeAllRanges();
     setSelection(draft => {
       draft.text = '';
       draft.position = null;
+      draft.isLoading = false;
     });
   };
 
@@ -79,7 +86,8 @@ const Speechly = ({ apiKey, fullName, email }: SpeechlyProps): React.ReactNode =
       <SpeechlyReadButton
         position={selection.position}
         onRead={handleReadText}
-        selectedText={selection.text} />
+        selectedText={selection.text}
+        isLoading={selection.isLoading} />
     </main>
   );
 };

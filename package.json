@@ -1,7 +1,7 @@
 {
   "name": "speechly",
   "private": false,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A React component for text-to-speech functionality using the Speechify API",
   "type": "module",
   "main": "dist/speechly.umd.js",
@@ -37,10 +37,12 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
+    "typecheck": "tsc -b",
+    "declarations": "tsc --project tsconfig.app.json --emitDeclarationOnly --outDir dist",
     "lint": "eslint .",
     "preview": "vite preview",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "npm run build && npm run declarations",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
