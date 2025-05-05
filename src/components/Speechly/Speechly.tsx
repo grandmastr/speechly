@@ -11,6 +11,8 @@ const Speechly = ({ apiKey, fullName, email }: SpeechlyProps): React.ReactNode =
     position: null,
     isLoading: false,
   });
+  const [audioElement, setAudioElement] = React.useState<HTMLAudioElement | null>(null);
+  const [isPaused, setIsPaused] = React.useState<boolean>(false);
 
   const handleTextSelection = React.useCallback(() => {
     const selection = window.getSelection();
@@ -48,21 +50,57 @@ const Speechly = ({ apiKey, fullName, email }: SpeechlyProps): React.ReactNode =
       try {
         // Import dynamically to avoid circular dependencies
         const { speakText } = await import('@/services/audio/voice');
-        await speakText(text, voiceId);
+        const result = await speakText(text, voiceId);
+        setAudioElement(result.audio);
+
+        // Add event listener to reset state when audio ends
+        result.audio.addEventListener('ended', () => {
+          setAudioElement(null);
+          setSelection(draft => {
+            draft.isLoading = false;
+          });
+        });
       } catch (error) {
         console.error('Error reading selected text:', error);
+        setSelection(draft => {
+          draft.isLoading = false;
+        });
       }
     } else {
       console.warn('No voice selected. Please select a voice in the control panel.');
+      setSelection(draft => {
+        draft.isLoading = false;
+      });
     }
+  };
 
-    // Clear the selection and reset loading state
-    window.getSelection()?.removeAllRanges();
-    setSelection(draft => {
-      draft.text = '';
-      draft.position = null;
-      draft.isLoading = false;
-    });
+  const handlePauseAudio = () => {
+    if (audioElement) {
+      audioElement.pause();
+      setIsPaused(true);
+      setSelection(draft => {
+        draft.isLoading = false;
+      });
+    }
+  };
+
+  const handleResumeAudio = () => {
+    if (audioElement) {
+      audioElement.play();
+      setIsPaused(false);
+    }
+  };
+
+  const handleStopAudio = () => {
+    if (audioElement) {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+      setAudioElement(null);
+      setIsPaused(false);
+      setSelection(draft => {
+        draft.isLoading = false;
+      });
+    }
   };
 
   // Set the API key when the component mounts or when the apiKey prop changes
@@ -86,8 +124,13 @@ const Speechly = ({ apiKey, fullName, email }: SpeechlyProps): React.ReactNode =
       <SpeechlyReadButton
         position={selection.position}
         onRead={handleReadText}
+        onPause={handlePauseAudio}
+        onResume={handleResumeAudio}
+        onStop={handleStopAudio}
         selectedText={selection.text}
-        isLoading={selection.isLoading} />
+        isLoading={selection.isLoading}
+        isPaused={isPaused}
+        isPlaying={!!audioElement && !selection.isLoading && !isPaused} />
     </main>
   );
 };

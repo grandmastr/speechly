@@ -21,7 +21,7 @@ function App() {
       </div>
       <h1>Vite + React</h1>
       {/* Example of using the Speechly component with a custom API key */}
-      <Speechly apiKey={apiKey} />
+      <Speechly apiKey={apiKey} email={'israelakintunde005@gmail.com'} fullName={'israel akintunde'} />
       <Toaster />
     </>
   );
